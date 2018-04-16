@@ -1,80 +1,73 @@
 //
 //  ViewController.swift
-//  VerticalWalls
+//  VerticalPlaneDetection
 //
-//  Created by Charu Tak on 11/04/18.
-//  Copyright © 2018 Charu Tak. All rights reserved.
+//  Created by Gregory Chiste on 1/27/18.
+//  Copyright © 2018 Gregory Chiste. All rights reserved.
 //
-
 import UIKit
 import SceneKit
 import ARKit
 
-class ViewController: UIViewController, ARSCNViewDelegate {
 
-    @IBOutlet var sceneView: ARSCNView!
+class ViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
+    
+    
+    @IBOutlet weak var ARView: ARSCNView!
     
     override func viewDidLoad() {
         super.viewDidLoad()
-        
-        // Set the view's delegate
-        sceneView.delegate = self
-        
-        // Show statistics such as fps and timing information
-        sceneView.showsStatistics = true
-        
-        // Create a new scene
-        let scene = SCNScene(named: "art.scnassets/ship.scn")!
-        
-        // Set the scene to the view
-        sceneView.scene = scene
+        ARView.delegate = self
+        ARView.session.delegate = self
+        ARView.showsStatistics = true
+        ARView.autoenablesDefaultLighting = true
+        let ARScene = SCNScene()
+        ARView.scene = ARScene
+        ARView.debugOptions = [ARSCNDebugOptions.showFeaturePoints, ARSCNDebugOptions.showWorldOrigin]
     }
     
+    //adding viewwillappear function
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
-        
-        // Create a session configuration
+        // setting up our scene configuration
         let configuration = ARWorldTrackingConfiguration()
-
-        // Run the view's session
-        sceneView.session.run(configuration)
-    }
-    
-    override func viewWillDisappear(_ animated: Bool) {
-        super.viewWillDisappear(animated)
+        configuration.planeDetection = .vertical //iOS 11.3 beta ONLY!
+        // running our configured session in our pianoView, at this point we can actually see things on-screen
+        ARView.session.run(configuration)
         
-        // Pause the view's session
-        sceneView.session.pause()
     }
     
     override func didReceiveMemoryWarning() {
         super.didReceiveMemoryWarning()
-        // Release any cached data, images, etc that aren't in use.
+        // Dispose of any resources that can be recreated.
+    }
+    
+    func renderer(_ renderer: SCNSceneRenderer, didAdd node: SCNNode, for anchor: ARAnchor) {
+        guard let planeAnchor = anchor as? ARPlaneAnchor else { return }
+        let planeNode = createPlaneNode(anchor: planeAnchor)
+        node.addChildNode(planeNode)
+   }
+    
+    func renderer(_ renderer: SCNSceneRenderer, didUpdate node: SCNNode, for anchor: ARAnchor) {
+        guard let planeAnchor = anchor as? ARPlaneAnchor else { return }
+         // Remove existing plane nodes
+        node.enumerateChildNodes {
+            (childNode, _) in
+            childNode.removeFromParentNode()
+        }
+        let planeNode = createPlaneNode(anchor: planeAnchor)
+        node.addChildNode(planeNode)
+    }
+    
+    func createPlaneNode(anchor: ARPlaneAnchor) -> SCNNode {
+        let planeNode = SCNNode()
+        planeNode.geometry = SCNPlane(width: CGFloat(anchor.extent.x), height: CGFloat(anchor.extent.z))
+        planeNode.opacity = 0.3
+        planeNode.position = SCNVector3(anchor.center.x, 0, anchor.center.z)
+        planeNode.eulerAngles = SCNVector3(-Float.pi/2,0,0)
+        return planeNode
     }
 
-    // MARK: - ARSCNViewDelegate
     
-/*
-    // Override to create and configure nodes for anchors added to the view's session.
-    func renderer(_ renderer: SCNSceneRenderer, nodeFor anchor: ARAnchor) -> SCNNode? {
-        let node = SCNNode()
-     
-        return node
-    }
-*/
     
-    func session(_ session: ARSession, didFailWithError error: Error) {
-        // Present an error message to the user
-        
-    }
-    
-    func sessionWasInterrupted(_ session: ARSession) {
-        // Inform the user that the session has been interrupted, for example, by presenting an overlay
-        
-    }
-    
-    func sessionInterruptionEnded(_ session: ARSession) {
-        // Reset tracking and/or remove existing anchors if consistent tracking is required
-        
-    }
 }
